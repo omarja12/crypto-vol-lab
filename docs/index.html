@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crypto vol lab — Omar Jarir</title>
+<meta name="description" content="Arbitrage-free SVI/SSVI calibration on Deribit options, staged so each layer validates the one beneath it.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>
+/* Shared shell — loaded by the hub and every project site.
+   Published at https://omarja12.github.io/assets/site.css
+   Load this FIRST; a project's own stylesheet overrides anything it redefines. */
+
+:root {
+  --bg:        #fbfaf8;
+  --surface:   #ffffff;
+  --border:    #e3ded6;
+  --border-mid:#cfc8bd;
+  --ink:       #1a1815;
+  --ink-mid:   #55504a;
+  --ink-soft:  #6e675e;
+  --accent:    #8a5a2b;
+  --accent-bg: #f3ece2;
+
+  --sans: ui-sans-serif, -apple-system, "Segoe UI", Inter, system-ui, sans-serif;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Menlo, Consolas, monospace;
+
+  --measure: 68ch;
+  --gutter: 16px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #14130f;
+    --surface:   #1c1a16;
+    --border:    #2e2a24;
+    --border-mid:#433d34;
+    --ink:       #f0ece4;
+    --ink-mid:   #b3aca1;
+    --ink-soft:  #9a9287;
+    --accent:    #d9a066;
+    --accent-bg: #26211a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:        #14130f;
+  --surface:   #1c1a16;
+  --border:    #2e2a24;
+  --border-mid:#433d34;
+  --ink:       #f0ece4;
+  --ink-mid:   #b3aca1;
+  --ink-soft:  #9a9287;
+  --accent:    #d9a066;
+  --accent-bg: #26211a;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 0 var(--gutter);
+}
+
+/* ---------- header ---------- */
+
+.site-head {
+  padding: 56px 0 8px;
+}
+
+/* brand lockup */
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 26px;
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.brand svg { display: block; width: 34px; height: 27px; }
+
+.brand-word {
+  font-family: var(--mono);
+  font-size: 0.76rem;
+  font-weight: 600;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+a.brand:hover .brand-word { color: var(--accent); }
+
+.site-name {
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-weight: 620;
+  letter-spacing: -0.022em;
+  margin: 0;
+  line-height: 1.15;
+}
+
+.site-tagline {
+  margin: 14px 0 0;
+  font-size: clamp(1rem, 2.4vw, 1.15rem);
+  color: var(--ink-mid);
+  max-width: var(--measure);
+}
+
+.site-head hr {
+  margin: 40px 0 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- band ---------- */
+
+.band { margin: 56px 0 0; }
+
+.band-label {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin: 0 0 22px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.band-label::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+
+/* ---------- grid ---------- */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+@media (max-width: 860px) { .grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 580px) { .grid { grid-template-columns: 1fr; } }
+
+/* The lead project in a band runs two columns wide, so a band of two cards
+   still fills its row. Below 861px the grid is too narrow for it to help. */
+.card--feature { grid-column: span 2; }
+
+@media (max-width: 860px) { .card--feature { grid-column: span 1; } }
+
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 22px 20px 18px;
+  transition: border-color .15s ease;
+}
+
+.card:hover {
+  border-color: var(--border-mid);
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.04rem;
+  font-weight: 620;
+  letter-spacing: -0.012em;
+}
+
+.card-desc {
+  margin: 10px 0 0;
+  font-size: 0.925rem;
+  color: var(--ink-mid);
+  flex: 1;
+}
+
+.card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 18px 0 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+}
+
+.tag {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 7px;
+}
+
+.year {
+  margin-left: auto;
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-radius: 4px;
+  padding: 2px 7px;
+  font-weight: 600;
+}
+
+.card-links {
+  display: flex;
+  gap: 18px;
+  margin: 16px 0 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--border);
+  font-size: 0.85rem;
+}
+
+.card-links a {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 550;
+}
+
+.card-links a:hover { text-decoration: underline; }
+
+.card-links .muted {
+  color: var(--ink-soft);
+  font-weight: 400;
+  cursor: default;
+}
+
+/* ---------- footer ---------- */
+
+.site-foot {
+  margin: 88px 0 0;
+  padding: 28px 0 56px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 26px;
+  align-items: center;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.site-foot a {
+  color: var(--ink-mid);
+  text-decoration: none;
+}
+
+.site-foot a:hover { color: var(--accent); }
+
+/* ---------- article, for project sites ---------- */
+
+.article { max-width: var(--measure); margin: 0 0 8px; }
+
+.article h2 {
+  margin: 56px 0 0;
+  font-size: 1.35rem;
+  font-weight: 620;
+  letter-spacing: -0.016em;
+}
+
+.article h3 {
+  margin: 34px 0 0;
+  font-size: 1.05rem;
+  font-weight: 620;
+}
+
+.article p { margin: 14px 0 0; }
+
+.article ul, .article ol { margin: 14px 0 0; padding-left: 22px; }
+.article li { margin: 7px 0 0; }
+
+.article strong { font-weight: 640; }
+
+.article a { color: var(--accent); text-decoration: none; }
+.article a:hover { text-decoration: underline; }
+
+.lede {
+  font-size: 1.1rem;
+  color: var(--ink-mid);
+}
+
+/* pull-out for a key result */
+.result {
+  margin: 30px 0 0;
+  padding: 20px 22px;
+  background: var(--accent-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+}
+
+.result p { margin: 0; }
+.result p + p { margin-top: 10px; }
+
+/* code */
+pre {
+  margin: 20px 0 0;
+  padding: 16px 18px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--ink-mid);
+}
+
+code {
+  font-family: var(--mono);
+  font-size: 0.88em;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+pre code { background: none; border: 0; padding: 0; font-size: inherit; }
+
+/* stage list */
+.stages {
+  margin: 24px 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: stage;
+}
+
+.stages li {
+  position: relative;
+  margin: 0;
+  padding: 14px 0 14px 46px;
+  border-top: 1px solid var(--border);
+  counter-increment: stage;
+}
+
+.stages li:last-child { border-bottom: 1px solid var(--border); }
+
+.stages li::before {
+  content: counter(stage);
+  position: absolute;
+  left: 0;
+  top: 13px;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.stages b { display: block; font-weight: 620; }
+.stages span { color: var(--ink-mid); font-size: 0.93rem; }
+
+/* ---------- back link, for project sites ---------- */
+
+.back-link {
+  display: inline-block;
+  margin: 28px 0 0;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.back-link:hover { color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .card { transition: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+  <header class="site-head">
+    <a class="brand" href="https://omarja12.github.io/">
+      <svg viewBox="0 0 40 32" aria-hidden="true">
+        <path d="M2 27.5h36" stroke="currentColor" stroke-width="1" opacity=".22" stroke-linecap="round"/>
+        <path d="M3.5 22.5C5.5 12.5 9.5 7.5 13.5 8.6c8 2.2 15.5 7.4 23 11.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="3.5" cy="22.5" r="2.1" fill="currentColor"/>
+        <circle cx="13.5" cy="8.6" r="2.1" fill="currentColor"/>
+        <circle cx="36.5" cy="20" r="2.1" fill="currentColor"/>
+      </svg>
+      <span class="brand-word">Omar Jarir</span>
+    </a>
+    <h1 class="site-name">Crypto vol lab</h1>
+    <p class="site-tagline">A volatility surface pipeline for Deribit options, built so that every layer proves itself before the next one is allowed to exist.</p>
+    <hr>
+  </header>
+
+  <main class="article">
+
+    <p class="lede">Most volatility surfaces look fine. The interesting question is how you would know if yours were wrong.</p>
+
+    <p>This project builds an arbitrage-free implied volatility surface from live Deribit options — forward extraction, implied vol inversion, SVI and SSVI calibration, then a mean-variance allocation on top. What makes it worth reading is not the calibration. It is the order, and the gates between the stages.</p>
+
+    <h2>The result that sets the design</h2>
+
+    <p>Before writing any calibration code, I wrote a test that asks what happens if the forward is slightly wrong. The answer decided the architecture.</p>
+
+    <div class="result">
+      <p><strong>A 99 basis point error in the forward manufactures a 3.58 volatility point shift in the risk reversal.</strong></p>
+      <p>That is a stable, persistent, tradeable-looking skew. It is entirely an artefact. Nothing downstream can detect it, because every stage after the forward inherits the error and stays internally consistent.</p>
+    </div>
+
+    <p>This is why forward extraction is stage 2 and calibration is stage 4. Not convention — consequence. If you fit a beautiful SVI smile on top of a bad forward, you get a beautiful, arbitrage-free, completely fictional skew, and every diagnostic you have will agree with it.</p>
+
+    <pre><code>[INFO] Wrong-forward distortion
+       true forward 100,986 vs assumed 100,000 (99 bps)
+       risk reversal shifts by 3.58 vol points — a stable,
+       tradeable-looking skew that is pure artefact</code></pre>
+
+    <h2>The stages</h2>
+
+    <ol class="stages">
+      <li><b>Capture and normalise</b><span>Deribit's BTC and ETH options are inverse — a quote of 0.0210 means 0.0210 BTC. Conversion to USD happens at the index, not the forward, because the premium is paid now.</span></li>
+      <li><b>Forward extraction</b><span>Put-call parity regression per expiry. The index cancels: in native units the slope is <code>-D/I</code> and the intercept <code>D·F/I</code>, so <code>F = intercept / -slope</code> needs no index at all.</span></li>
+      <li><b>Implied volatility inversion</b><span>Black-76 on out-of-the-money quotes, validated against the venue's own mark IV. The venue's number is used only to check, never as an input.</span></li>
+      <li><b>SVI calibration</b><span>Per-expiry fit in total variance <code>w = σ²T</code>, with Lee's wing bound as <code>b(1+|ρ|) ≤ 2</code>.</span></li>
+      <li><b>SSVI arbitrage gate</b><span>Durrleman's condition across the surface. On failure the fit is redone jointly under SSVI and the cost in fit quality is reported.</span></li>
+    </ol>
+
+    <h2>Every stage has a number it must hit</h2>
+
+    <p>Each stage publishes acceptance criteria, and quotes that fail are quarantined with a reason code rather than deleted — so rejection counts become a daily time series. A sudden change means either the market moved or the feed broke, and you need to know which.</p>
+
+    <ul>
+      <li>Parity regression <code>r²</code> must clear <strong>0.999</strong></li>
+      <li>Extracted forward must sit within a few basis points of the venue's own</li>
+      <li>Inversion failures must stay under <strong>1%</strong></li>
+      <li>SVI weighted fit error must stay under <strong>0.5 volatility points</strong></li>
+      <li><code>durrleman_min</code> must be non-negative — negative means negative risk-neutral density</li>
+    </ul>
+
+    <p>Stage 5 is a hard gate, and the rule when it fires is deliberate: <strong>accept the worse fit.</strong> An arbitrage-free surface with larger residuals is usable. A tight fit with negative density is not.</p>
+
+    <h3>Diagnostics point upstream</h3>
+
+    <p>A rising inversion failure rate at moderate moneyness is the signature of a bad forward from stage 2, not a solver problem. The output is designed so that symptoms name their likely cause rather than sending you to the wrong layer.</p>
+
+    <h2>Anyone can reproduce it</h2>
+
+    <p>There is no API key, no account and no subscription anywhere in this project. Live chains come from Deribit's public endpoints. Historical quotes come from the Tardis free tier, which serves the first day of each month — roughly twelve real quote-level days per year, enough to build and validate the calibration now instead of waiting months for a private archive. The full options trade archive is free from Deribit directly.</p>
+
+    <p>The trade archive is not used to build surfaces — prints are far too sparse across strikes. It is used for the cost model: every print carries its direction, so you can measure where trades actually happen relative to mark. Assuming a flat haircut instead is how a strategy looks profitable on paper and is not.</p>
+
+    <h2>Running it</h2>
+
+    <p>In this order. The first command needs no network — if it fails, the problem is the environment, not the market.</p>
+
+    <pre><code>python test_synthetic.py         # the numerics            5/5
+python test_loaders.py           # the loaders             4/4
+python test_svi.py               # calibration and gates  11/11
+python test_portfolio.py         # the allocation layer     7/7
+python run_surface.py --offline  # the plumbing, stages 0-5
+python run_surface.py BTC        # live capture</code></pre>
+
+    <p>The synthetic test generates option prices from known parameters, runs them back through stages 2 and 3, and checks the parameters are recovered. Everything above the last line runs without a network.</p>
+
+    <p>The allocation tests include a deliberate negative control: on pure noise, mean-variance must show <strong>no</strong> out-of-sample edge over equal weight while still paying turnover. A method that looks good on noise is measuring nothing.</p>
+
+    <a class="back-link" href="https://omarja12.github.io/">← All work</a>
+
+  </main>
+
+  <footer class="site-foot">
+    <span>Omar Jarir</span>
+    <a href="mailto:jarir.omar@hotmail.fr">jarir.omar@hotmail.fr</a>
+    <a href="https://github.com/omarja12">GitHub</a>
+  </footer>
+
+</div>
+
+</body>
+</html>
